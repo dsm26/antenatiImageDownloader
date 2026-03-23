@@ -12,7 +12,7 @@ st.set_page_config(page_title="Antenati Tool", page_icon="🏛️")
 st.title("🏛️ Antenati IIIF Downloader")
 
 # 2. Input Field (Auto-filled if ID is in URL)
-image_id = st.text_input("Enter IIIF Image ID", value=url_id)
+image_id = st.text_input("Enter IIIF Image ID (e.g. 5x47kjo)", value=url_id)
 
 if image_id:
     st.info(f"Processing: {image_id}...")
