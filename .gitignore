@@ -1,0 +1,46 @@
+### --- Python & Streamlit ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.streamlit/secrets.toml
+.streamlit/config.toml
+
+### --- API & Credentials ---
+# Never commit your Gemini or Database keys
+.env
+*.pem
+secrets.json
+credentials.json
+.netrc
+
+### --- Genealogy & Data Processing ---
+# Ignore local database files and downloaded image assets
+*.sqlite
+*.db
+data/
+downloads/
+temp/
+output/
+*.log
+*.csv
+*.json
+# Exception: Keep a specific config if needed
+!config.json
+
+### --- Operating System & IDEs ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+### --- Build & Distribution ---
+dist/
+build/
+*.egg-info/
