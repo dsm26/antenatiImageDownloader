@@ -40,6 +40,10 @@ desktop.ini
 *.swp
 *.swo
 
+### --- Vim files ---
+*~
+.*~
+
 ### --- Build & Distribution ---
 dist/
 build/

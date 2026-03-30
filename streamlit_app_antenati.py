@@ -12,10 +12,13 @@ st.set_page_config(page_title="Antenati Tool", page_icon="🏛️")
 st.title("🏛️ Antenati IIIF Downloader")
 
 # 2. Input Field (Auto-filled if ID is in URL)
-image_id = st.text_input("Enter IIIF Image ID (e.g. 5x47kjo)", value=url_id)
+user_input = st.text_input("Enter IIIF Image ID (e.g. 5x47kjo) or Antenati ARK Identifier (e.g. https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ)", value=url_id)
+
+# Logic to extract ID from URL if necessary
+image_id = user_input.strip().split('/')[-1] if user_input else ""
 
 if image_id:
-    st.info(f"Processing: {image_id}...")
+    st.info(f"Processing ID: {image_id}...")
     
     HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
     base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
