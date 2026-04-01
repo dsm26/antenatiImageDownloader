@@ -134,7 +134,7 @@ if image_id:
         status_msg.empty()
         st.success("✅ Ready!")
         st.download_button(
-            label="📥 Download Stitched Image",
+            label="📥 Download Image",
             data=buf.getvalue(),
             file_name=f"{image_id}.jpg",
             mime="image/jpeg"
