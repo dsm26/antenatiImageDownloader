@@ -42,8 +42,26 @@ url_id = query_params.get("image_id", "")
 st.set_page_config(page_title="Antenati Tool", page_icon="🏛️")
 st.title("🏛️ Antenati Image Downloader")
 
+with st.expander("📖 Instructions & Related Tools"):
+    st.write("""
+    This tool is designed for use with the official [Antenati portal](https://antenati.cultura.gov.it/), 
+    not the copies found on FamilySearch.
+
+    **How to use:**
+    1. Find the record image you want to download on the Antenati website.
+    2. Look for the link labeled **"Copia link del bookmark"** on that page and click it to copy the address.
+    3. Paste that link into the box below.
+
+    **Example URLs:**
+    * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ
+    * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8x9
+
+    **Need Translation?**
+    Check out the [Antenati Image Translator](https://antenati-image-translator.streamlit.app/) to help read your discovered records.
+    """)
+
 # 2. Input Field (Auto-filled if ID is in URL)
-user_input = st.text_input("Enter IIIF Image ID (e.g. 5x47kjo) or the Antenati ARK Identifier (e.g. https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ)", value=url_id)
+user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 
 # Logic to extract ID from URL if necessary
 image_id = user_input.strip().split('/')[-1] if user_input else ""
