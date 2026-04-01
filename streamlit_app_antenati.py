@@ -2,7 +2,7 @@ import streamlit as st
 import math
 import requests
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 # --- GOOGLE ANALYTICS VIA SECRETS ---
 # These pull from .streamlit/secrets.toml or Streamlit Cloud Secrets
@@ -96,9 +96,28 @@ if image_id:
                 final_img.paste(tile_data, (x, y))
             progress_bar.progress((r + 1) / rows)
 
+        # --- ADD FOOTER AND METADATA ---
+        footer_height = 60
+        final_with_footer = Image.new("RGB", (w, h + footer_height), (255, 255, 255))
+        final_with_footer.paste(final_img, (0, 0))
+        
+        draw = ImageDraw.Draw(final_with_footer)
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 35)
+        except:
+            font = ImageFont.load_default()
+
+        footer_text = f"Source: {user_input}"
+        draw.text((20, h + 10), footer_text, fill=(0, 0, 0), font=font)
+
+        # Embed EXIF metadata
+        exif = final_with_footer.getexif()
+        exif[270] = f"Source: {user_input}"
+        exif[37510] = f"Source: {user_input}"
+
         # Prepare for download
         buf = BytesIO()
-        final_img.save(buf, format="JPEG", quality=95)
+        final_with_footer.save(buf, format="JPEG", quality=95, exif=exif)
         
         # --- TRACKING CALL ---
         send_analytics_event("image_stitched", image_id=image_id)
