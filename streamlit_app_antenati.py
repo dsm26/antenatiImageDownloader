@@ -4,15 +4,46 @@ import requests
 from io import BytesIO
 from PIL import Image
 
+# --- GOOGLE ANALYTICS VIA SECRETS ---
+# These pull from .streamlit/secrets.toml or Streamlit Cloud Secrets
+GA_MEASUREMENT_ID = st.secrets["GA_MEASUREMENT_ID"]
+GA_API_SECRET = st.secrets["GA_API_SECRET"]
+
+def send_analytics_event(event_name, image_id=None):
+    """Sends a server-side event to GA4 using Streamlit Secrets."""
+    url = f"https://www.google-analytics.com/mp/collect?measurement_id={GA_MEASUREMENT_ID}&api_secret={GA_API_SECRET}"
+    
+    # Get the Session ID for unique user tracking
+    from streamlit.runtime.scriptrunner import get_script_run_ctx
+    ctx = get_script_run_ctx()
+    session_id = ctx.session_id if ctx else "anonymous"
+
+    payload = {
+        "client_id": session_id,
+        "events": [{
+            "name": event_name,
+            "params": {
+                "image_id": image_id,
+                "session_id": session_id,
+                "engagement_time_msec": "1"
+            }
+        }]
+    }
+    
+    try:
+        requests.post(url, json=payload, timeout=2)
+    except:
+        pass
+
 # 1. Look for ?image_id=XYZ in the URL
 query_params = st.query_params
 url_id = query_params.get("image_id", "")
 
 st.set_page_config(page_title="Antenati Tool", page_icon="🏛️")
-st.title("🏛️ Antenati IIIF Downloader")
+st.title("🏛️ Antenati Image Downloader")
 
 # 2. Input Field (Auto-filled if ID is in URL)
-user_input = st.text_input("Enter IIIF Image ID (e.g. 5x47kjo) or Antenati ARK Identifier (e.g. https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ)", value=url_id)
+user_input = st.text_input("Enter IIIF Image ID (e.g. 5x47kjo) or the Antenati ARK Identifier (e.g. https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ)", value=url_id)
 
 # Logic to extract ID from URL if necessary
 image_id = user_input.strip().split('/')[-1] if user_input else ""
@@ -51,6 +82,9 @@ if image_id:
         buf = BytesIO()
         final_img.save(buf, format="JPEG", quality=95)
         
+        # --- TRACKING CALL ---
+        send_analytics_event("image_stitched", image_id=image_id)
+
         st.success("✅ Ready!")
         st.download_button(
             label="📥 Download Stitched Image",
