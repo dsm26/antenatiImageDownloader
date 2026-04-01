@@ -74,6 +74,8 @@ if image_id:
     
     try:
         # Fetch Metadata
+        status_msg = st.empty()
+        status_msg.text("Getting the original information for the page...")
         info = requests.get(f"{base_url}/info.json", headers=HEADERS).json()
         w, h = info["width"], info["height"]
         tw = info["tiles"][0]["width"]
@@ -81,22 +83,29 @@ if image_id:
         
         final_img = Image.new("RGB", (w, h))
         cols, rows = math.ceil(w / tw), math.ceil(h / th)
+        total_tiles = cols * rows
         
         progress_bar = st.progress(0)
         
         # Download and Stitch
+        tile_count = 0
         for r in range(rows):
             for c in range(cols):
+                tile_count += 1
                 x, y = c * tw, r * th
                 tile_w, tile_h = min(tw, w - x), min(th, h - y)
                 tile_url = f"{base_url}/{x},{y},{tile_w},{tile_h}/full/0/default.jpg"
                 
+                status_msg.text(f"Downloading tile {tile_count} of {total_tiles}...")
                 res = requests.get(tile_url, headers=HEADERS)
                 tile_data = Image.open(BytesIO(res.content))
+                
+                status_msg.text(f"Stitching tile {tile_count} of {total_tiles}...")
                 final_img.paste(tile_data, (x, y))
-            progress_bar.progress((r + 1) / rows)
+                progress_bar.progress(tile_count / total_tiles)
 
         # --- ADD FOOTER AND METADATA ---
+        status_msg.text("Finalizing image and metadata...")
         footer_height = 60
         final_with_footer = Image.new("RGB", (w, h + footer_height), (255, 255, 255))
         final_with_footer.paste(final_img, (0, 0))
@@ -122,6 +131,7 @@ if image_id:
         # --- TRACKING CALL ---
         send_analytics_event("image_stitched", image_id=image_id)
 
+        status_msg.empty()
         st.success("✅ Ready!")
         st.download_button(
             label="📥 Download Stitched Image",
