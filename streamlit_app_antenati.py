@@ -69,13 +69,13 @@ image_id = ""
 if user_input:
     cleaned_input = user_input.strip()
     
-    # Use urlparse to handle ?query=params or #fragments
-    parsed_path = urlparse(cleaned_input).path.rstrip('/')
-    extracted_id = parsed_path.split('/')[-1] if '/' in parsed_path else cleaned_input
-
-    # Validation: Must be an ARK URL or a single ID (no slashes in the final ID)
-    if "ark:/12657/" in cleaned_input or (len(cleaned_input) > 0 and "/" not in cleaned_input):
-        image_id = extracted_id
+    # Check if it's a valid official ARK URL
+    if "ark:/12657/" in cleaned_input:
+        parsed_path = urlparse(cleaned_input).path.rstrip('/')
+        image_id = parsed_path.split('/')[-1]
+    # "Hidden" feature: Check if it's just a raw ID (no slashes, no dots)
+    elif "/" not in cleaned_input and "." not in cleaned_input and len(cleaned_input) > 0:
+        image_id = cleaned_input
     else:
         st.error("""
         **Invalid URL format.** Please use a valid Antenati ARK URL.
@@ -97,7 +97,10 @@ if image_id:
         # Fetch Metadata
         status_msg = st.empty()
         status_msg.text("Getting the original information for the page...")
-        info = requests.get(f"{base_url}/info.json", headers=HEADERS).json()
+        response = requests.get(f"{base_url}/info.json", headers=HEADERS)
+        response.raise_for_status() # Ensure we got a 200 OK
+        info = response.json()
+        
         w, h = info["width"], info["height"]
         tw = info["tiles"][0]["width"]
         th = info["tiles"][0].get("height", tw)
@@ -165,4 +168,4 @@ if image_id:
         st.image(buf.getvalue(), caption="Preview", use_container_width=True)
 
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Could not retrieve image data. Please ensure the link is correct. (Technical Error: {e})")
