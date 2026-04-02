@@ -3,6 +3,7 @@ import math
 import requests
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
+from urllib.parse import urlparse  # Added for robust URL parsing
 
 # --- GOOGLE ANALYTICS VIA SECRETS ---
 # These pull from .streamlit/secrets.toml or Streamlit Cloud Secrets
@@ -64,7 +65,27 @@ with st.expander("📖 Instructions & Related Tools"):
 user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 
 # Logic to extract ID from URL if necessary
-image_id = user_input.strip().split('/')[-1] if user_input else ""
+image_id = ""
+if user_input:
+    cleaned_input = user_input.strip()
+    
+    # Use urlparse to handle ?query=params or #fragments
+    parsed_path = urlparse(cleaned_input).path.rstrip('/')
+    extracted_id = parsed_path.split('/')[-1] if '/' in parsed_path else cleaned_input
+
+    # Validation: Must be an ARK URL or a single ID (no slashes in the final ID)
+    if "ark:/12657/" in cleaned_input or (len(cleaned_input) > 0 and "/" not in cleaned_input):
+        image_id = extracted_id
+    else:
+        st.error("""
+        **Invalid URL format.** Please use a valid Antenati ARK URL.
+        
+        **How to find it:**
+        On the Antenati portal, click the **'Copia link del bookmark'** button to get the correct link.
+        
+        **Format should look like:**
+        `https://antenati.cultura.gov.it/ark:/12657/an_ua.../XYZ123`
+        """)
 
 if image_id:
     st.info(f"Processing ID: {image_id}...")
