@@ -6,6 +6,8 @@ from PIL import Image, ImageDraw, ImageFont
 from urllib.parse import urlparse  # Added for robust URL parsing
 import json
 import uuid
+import subprocess
+from datetime import datetime
 
 # --- GOOGLE ANALYTICS VIA SECRETS ---
 # These pull from .streamlit/secrets.toml or Streamlit Cloud Secrets
