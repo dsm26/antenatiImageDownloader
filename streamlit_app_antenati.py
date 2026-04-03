@@ -4,37 +4,46 @@ import requests
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from urllib.parse import urlparse  # Added for robust URL parsing
+import json
+import uuid
 
 # --- GOOGLE ANALYTICS VIA SECRETS ---
 # These pull from .streamlit/secrets.toml or Streamlit Cloud Secrets
 GA_MEASUREMENT_ID = st.secrets["GA_MEASUREMENT_ID"]
 GA_API_SECRET = st.secrets["GA_API_SECRET"]
 
-def send_analytics_event(event_name, image_id=None):
+def track_ga_event(event_name, extra_params=None):
     """Sends a server-side event to GA4 using Streamlit Secrets."""
-    url = f"https://www.google-analytics.com/mp/collect?measurement_id={GA_MEASUREMENT_ID}&api_secret={GA_API_SECRET}"
-    
-    # Get the Session ID for unique user tracking
-    from streamlit.runtime.scriptrunner import get_script_run_ctx
-    ctx = get_script_run_ctx()
-    session_id = ctx.session_id if ctx else "anonymous"
-
-    payload = {
-        "client_id": session_id,
-        "events": [{
-            "name": event_name,
-            "params": {
-                "image_id": image_id,
-                "session_id": session_id,
-                "engagement_time_msec": "1"
-            }
-        }]
-    }
-    
     try:
+        # Get real user info for better reporting (Matches Program 2)
+        user_ip = st.context.headers.get("X-Forwarded-For", "0.0.0.0").split(",")[0]
+        user_agent = st.context.headers.get("User-Agent", "Unknown")
+        
+        if "ga_client_id" not in st.session_state:
+            st.session_state.ga_client_id = str(uuid.uuid4())
+
+        url = f"https://www.google-analytics.com/mp/collect?measurement_id={GA_MEASUREMENT_ID}&api_secret={GA_API_SECRET}"
+        
+        payload = {
+            "client_id": st.session_state.ga_client_id,
+            "events": [{
+                "name": event_name,
+                "params": {
+                    "ip_override": user_ip,
+                    "user_agent": user_agent,
+                    "engagement_time_msec": "1",
+                    **(extra_params or {})
+                }
+            }]
+        }
         requests.post(url, json=payload, timeout=2)
     except:
         pass
+
+# --- 1. PAGE LOAD TRACKING ---
+if "page_loaded" not in st.session_state:
+    track_ga_event("page_load")
+    st.session_state.page_loaded = True
 
 # 1. Look for ?image_id=XYZ in the URL
 query_params = st.query_params
@@ -72,11 +81,21 @@ if user_input:
     # Check if it's a valid official ARK URL
     if "ark:/12657/" in cleaned_input:
         parsed_path = urlparse(cleaned_input).path.rstrip('/')
-        image_id = parsed_path.split('/')[-1]
+        path_parts = parsed_path.split('/')
+        image_id = path_parts[-1]
+        
+        # --- 5. TRACK ARK COMPONENTS ---
+        # Extracting the 'an_ua...' part and the unique ID
+        if len(path_parts) >= 2:
+            ark_unit = path_parts[-2]
+            track_ga_event("ark_components_tracked", {"ark_unit": ark_unit, "ark_id": image_id})
+
     # "Hidden" feature: Check if it's just a raw ID (no slashes, no dots)
     elif "/" not in cleaned_input and "." not in cleaned_input and len(cleaned_input) > 0:
         image_id = cleaned_input
     else:
+        # --- 3. INVALID VALUE TRACKING ---
+        track_ga_event("invalid_input_error", {"input_value": cleaned_input[:50]})
         st.error("""
         **Invalid URL format.** Please use a valid Antenati ARK URL.
         
@@ -153,19 +172,25 @@ if image_id:
         final_with_footer.save(buf, format="JPEG", quality=95, exif=exif)
         
         # --- TRACKING CALL ---
-        send_analytics_event("image_stitched", image_id=image_id)
+        track_ga_event("image_stitched", {"image_id": image_id})
 
         status_msg.empty()
         st.success("✅ Ready!")
-        st.download_button(
+        
+        # --- 2. DOWNLOAD BUTTON TRACKING ---
+        download_clicked = st.download_button(
             label="📥 Download Image",
             data=buf.getvalue(),
             file_name=f"{image_id}.jpg",
             mime="image/jpeg"
         )
+        if download_clicked:
+            track_ga_event("image_downloaded", {"image_id": image_id})
         
         # Also show a preview
         st.image(buf.getvalue(), caption="Preview", use_container_width=True)
 
     except Exception as e:
+        # --- 4. ANTENATI ERROR TRACKING ---
+        track_ga_event("antenati_error", {"image_id": image_id, "error_type": "download_fail"})
         st.error(f"Could not retrieve image data. Please ensure the link is correct. (Technical Error: {e})")
