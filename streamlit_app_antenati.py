@@ -137,9 +137,13 @@ if image_id:
         # Fetch Metadata
         status_msg = st.empty()
         status_msg.text("Getting the original information for the page...")
-        response = requests.get(f"{base_url}/info.json", headers=HEADERS)
-        response.raise_for_status() # Ensure we got a 200 OK
-        info = response.json()
+        try:
+            response = requests.get(f"{base_url}/info.json", headers=HEADERS)
+            response.raise_for_status() # Ensure we got a 200 OK
+            info = response.json()
+        except Exception as e:
+            track_ga_event("antenati_error", {"error_type": "info_json", "image_id": image_id})
+            raise e
         
         w, h = info["width"], info["height"]
         tw = info["tiles"][0]["width"]
@@ -161,12 +165,17 @@ if image_id:
                 tile_url = f"{base_url}/{x},{y},{tile_w},{tile_h}/full/0/default.jpg"
                 
                 status_msg.text(f"Downloading tile {tile_count} of {total_tiles}...")
-                res = requests.get(tile_url, headers=HEADERS)
-                tile_data = Image.open(BytesIO(res.content))
-                
-                status_msg.text(f"Stitching tile {tile_count} of {total_tiles}...")
-                final_img.paste(tile_data, (x, y))
-                progress_bar.progress(tile_count / total_tiles)
+                try:
+                    res = requests.get(tile_url, headers=HEADERS)
+                    res.raise_for_status()
+                    tile_data = Image.open(BytesIO(res.content))
+                    
+                    status_msg.text(f"Stitching tile {tile_count} of {total_tiles}...")
+                    final_img.paste(tile_data, (x, y))
+                    progress_bar.progress(tile_count / total_tiles)
+                except Exception as e:
+                    track_ga_event("antenati_error", {"error_type": "tile_download", "image_id": image_id})
+                    raise e
 
         # --- ADD FOOTER AND METADATA ---
         status_msg.text("Finalizing image and metadata...")
@@ -213,5 +222,5 @@ if image_id:
 
     except Exception as e:
         # --- 4. ANTENATI ERROR TRACKING ---
-        track_ga_event("antenati_error", {"image_id": image_id, "error_type": "download_fail"})
+        # The specific error types are now handled in the inner try/except blocks
         st.error(f"Could not retrieve image data. Please ensure the link is correct. (Technical Error: {e})")
