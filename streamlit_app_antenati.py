@@ -69,7 +69,7 @@ with st.expander("📖 Instructions & Related Tools"):
     * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ
     * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8x9
 
-    ### **📥 Best Way to Save**
+    **📥 Best Way to Save**
     For the best results, always use the **"Download" button** rather than right-clicking the image:
 
     * **Automatic Naming:** The button automatically names your file using the **Image ID** so your records stay organized.
