@@ -185,7 +185,7 @@ if image_id:
             mime="image/jpeg"
         )
         if download_clicked:
-            track_ga_event("image_downloaded", {"image_id": image_id})
+            track_ga_event("download_button_pushed", {"image_id": image_id})
         
         # Also show a preview
         st.image(buf.getvalue(), caption="Preview", use_container_width=True)
