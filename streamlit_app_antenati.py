@@ -96,6 +96,7 @@ user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 
 # Logic to extract ID from URL if necessary
 image_id = ""
+ark_unit = ""
 if user_input:
     cleaned_input = user_input.strip()
     
@@ -110,6 +111,10 @@ if user_input:
         if len(path_parts) >= 2:
             ark_unit = path_parts[-2]
             track_ga_event("ark_components_tracked", {"ark_unit": ark_unit, "ark_id": image_id})
+            
+            # --- NEW: TRACK FULL RECONSTRUCTED PATH ---
+            ark_path = f"{ark_unit}/{image_id}"
+            track_ga_event("record_path_logged", {"ark_path": ark_path})
 
     # "Hidden" feature: Check if it's just a raw ID (no slashes, no dots)
     elif "/" not in cleaned_input and "." not in cleaned_input and len(cleaned_input) > 0:
@@ -207,11 +212,14 @@ if image_id:
         status_msg.empty()
         st.success("✅ Ready!")
         
+        # Determine descriptive filename
+        save_name = f"{ark_unit}_{image_id}.jpg" if ark_unit else f"{image_id}.jpg"
+
         # --- 2. DOWNLOAD BUTTON TRACKING ---
         download_clicked = st.download_button(
             label="📥 Download Image",
             data=buf.getvalue(),
-            file_name=f"{image_id}.jpg",
+            file_name=save_name,
             mime="image/jpeg"
         )
         if download_clicked:
