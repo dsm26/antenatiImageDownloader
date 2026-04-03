@@ -49,7 +49,7 @@ if "page_loaded" not in st.session_state:
 query_params = st.query_params
 url_id = query_params.get("image_id", "")
 
-st.set_page_config(page_title="Antenati Tool", page_icon="🏛️")
+st.set_page_config(page_title="Antenati Image Downloader", page_icon="🏛️")
 st.title("🏛️ Antenati Image Downloader")
 
 with st.expander("📖 Instructions & Related Tools"):
