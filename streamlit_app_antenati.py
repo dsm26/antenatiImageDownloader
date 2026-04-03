@@ -85,11 +85,7 @@ with st.expander("📖 Instructions & Related Tools"):
 
 
     **📥 Best Way to Save**
-    For the best results, always use the **"Download" button** rather than right-clicking the image:
-
-    > * **Automatic Naming:** The button automatically names your file using the **Image ID** so your records stay organized.
-    > * **Source Tracking:** The app "tags" the image file by embedding the **original Antenati URL** directly into the file's data (metadata).
-    > * **Why avoid right-clicking?** If you "Save Image As" from the preview, your computer will give it a **random name** and the link to the original record will not be embedded in the image.
+    For the best results, always use the **"Download" button** rather than right-clicking the image. The button automatically names your file using the **Image ID** and will embed the **original Antenati URL** in the file's internal metadata.
     """)
 
     st.divider() # Adds a thin line
