@@ -57,6 +57,9 @@ with st.expander("📖 Instructions & Related Tools"):
     This tool is designed for use with the official [Antenati portal](https://antenati.cultura.gov.it/), 
     not the copies found on FamilySearch.
 
+    **Need Translation?**
+    Check out the [Antenati Image Translator](https://antenati-image-translator.streamlit.app/) to help read your discovered records.
+
     **How to use:**
     1. Find the record image you want to download on the Antenati website.
     2. Look for the link labeled **"Copia link del bookmark"** on that page and click it to copy the address.
@@ -66,8 +69,12 @@ with st.expander("📖 Instructions & Related Tools"):
     * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ
     * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8x9
 
-    **Need Translation?**
-    Check out the [Antenati Image Translator](https://antenati-image-translator.streamlit.app/) to help read your discovered records.
+    ### **📥 Best Way to Save**
+    For the best results, always use the **"Download" button** rather than right-clicking the image:
+
+    * **Automatic Naming:** The button automatically names your file using the **Image ID** so your records stay organized.
+    * **Source Tracking:** The app "tags" the image file by embedding the **original Antenati URL** directly into the file's data (metadata).
+    * **Why avoid right-clicking?** If you "Save Image As" from the preview, your computer will give it a **random name** and the link to the original record will not be embedded in the image.
     """)
 
 # 2. Input Field (Auto-filled if ID is in URL)
