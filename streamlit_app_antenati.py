@@ -12,6 +12,18 @@ import uuid
 GA_MEASUREMENT_ID = st.secrets["GA_MEASUREMENT_ID"]
 GA_API_SECRET = st.secrets["GA_API_SECRET"]
 
+def get_git_info():
+    try:
+        # Get short hash
+        sha = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
+        # Get commit date
+        commit_date = subprocess.check_output(['git', 'log', '-1', '--format=%cd', '--date=format:%Y-%m-%d %H:%M']).decode('ascii').strip()
+        return f"Build: {sha} | {commit_date}"
+    except:
+        # Fallback if git is not available
+        from datetime import datetime
+        return f"Last Refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
 def track_ga_event(event_name, extra_params=None):
     """Sends a server-side event to GA4 using Streamlit Secrets."""
     try:
@@ -76,6 +88,9 @@ with st.expander("📖 Instructions & Related Tools"):
     * **Source Tracking:** The app "tags" the image file by embedding the **original Antenati URL** directly into the file's data (metadata).
     * **Why avoid right-clicking?** If you "Save Image As" from the preview, your computer will give it a **random name** and the link to the original record will not be embedded in the image.
     """)
+
+    st.divider() # Adds a thin line
+    st.caption(get_git_info())
 
 # 2. Input Field (Auto-filled if ID is in URL)
 user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
