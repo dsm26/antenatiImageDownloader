@@ -185,7 +185,7 @@ if image_id:
         
         draw = ImageDraw.Draw(final_with_footer)
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 35)
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 35)
         except:
             font = ImageFont.load_default()
 
@@ -199,7 +199,7 @@ if image_id:
 
         # Prepare for download
         buf = BytesIO()
-        final_with_footer.save(buf, format="JPEG", quality=95, exif=exif)
+        final_with_footer.save(buf, format="JPEG", quality=95, subsampling=0, exif=exif)
         
         # --- TRACKING CALL ---
         track_ga_event("image_stitched", {"image_id": image_id})
