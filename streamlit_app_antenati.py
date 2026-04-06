@@ -141,14 +141,16 @@ processing_url = user_input.strip()
 
 if processing_url:
     # --- NEW: an_ud INTERCEPTOR ---
-    if "/an_ud" in processing_url:
+    is_document_unit = "/an_ud" in processing_url
+    if is_document_unit:
         with st.spinner("🔍 Document unit detected. Finding specific record link..."):
             redirected = get_canvas_id_url(processing_url)
             if redirected:
                 processing_url = redirected
 
-        if "/an_ud" in user_input.strip(): # Check if original input was a unit
-            st.info(f"**Note:** Using URL: `{processing_url}`. This is necessary to locate requested image.")
+    # PERSISTENT NOTIFICATION: Outside the spinner and the update logic
+    if is_document_unit and "ark:/12657/" in processing_url:
+        st.info(f"**Note:** Using URL: `{processing_url}`. This is necessary to locate requested image.")
 
     # Check if it's a valid official ARK URL
     if "ark:/12657/" in processing_url:
