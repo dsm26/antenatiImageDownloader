@@ -8,11 +8,15 @@ import json
 import uuid
 import subprocess
 from datetime import datetime
+import traceback
+
+# --- CONFIGURATION ---
+APP_NAME = "Antenati Image Downloader"
 
 # --- GOOGLE ANALYTICS VIA SECRETS ---
 # These pull from .streamlit/secrets.toml or Streamlit Cloud Secrets
-GA_MEASUREMENT_ID = st.secrets["GA_MEASUREMENT_ID"]
-GA_API_SECRET = st.secrets["GA_API_SECRET"]
+GA_MEASUREMENT_ID = st.secrets.get("GA_MEASUREMENT_ID")
+GA_API_SECRET = st.secrets.get("GA_API_SECRET")
 
 def get_git_info():
     try:
@@ -29,7 +33,10 @@ def get_git_info():
 def track_ga_event(event_name, extra_params=None):
     """Sends a server-side event to GA4 using Streamlit Secrets."""
     try:
-        # Get real user info for better reporting (Matches Program 2)
+        if not GA_API_SECRET or not GA_MEASUREMENT_ID:
+            return
+
+        # Get real user info for better reporting
         user_ip = st.context.headers.get("X-Forwarded-For", "0.0.0.0").split(",")[0]
         user_agent = st.context.headers.get("User-Agent", "Unknown")
         
@@ -54,6 +61,25 @@ def track_ga_event(event_name, extra_params=None):
     except:
         pass
 
+# --- Google Sheets LOGGING FUNCTION ---
+def log_to_gsheets(sheet_name, row_data):
+    """Targeted logging for usage, error, and ai tabs."""
+    script_url = st.secrets.get("GSHEET_WEBAPP_URL")
+    if not script_url:
+        return
+
+    client_id = st.session_state.get("ga_client_id", "unknown_session")
+    
+    payload = {
+        "sheetName": sheet_name,
+        "rowData": [datetime.now().strftime('%Y-%m-%d %H:%M:%S'), client_id] + row_data
+    }
+    
+    try:
+        requests.post(script_url, json=payload, timeout=5)
+    except:
+        pass
+
 # --- 1. PAGE LOAD TRACKING ---
 if "page_loaded" not in st.session_state:
     track_ga_event("page_load")
@@ -63,8 +89,8 @@ if "page_loaded" not in st.session_state:
 query_params = st.query_params
 url_id = query_params.get("image_id", "")
 
-st.set_page_config(page_title="Antenati Image Downloader", page_icon="🏛️")
-st.title("🏛️ Antenati Image Downloader")
+st.set_page_config(page_title=APP_NAME, page_icon="🏛️")
+st.title(f"🏛️ {APP_NAME}")
 
 with st.expander("📖 Instructions & Related Tools"):
     st.write("""
@@ -133,6 +159,12 @@ if user_input:
         """)
 
 if image_id:
+    # --- TRACK IMAGE VIEW (only once per ID) ---
+    if "last_stitched_id" not in st.session_state or st.session_state.last_stitched_id != image_id:
+        track_ga_event("image_stitched", {"image_id": image_id})
+        log_to_gsheets("usage_logs", [APP_NAME, ark_unit, user_input])
+        st.session_state.last_stitched_id = image_id
+
     st.info(f"Processing ID: {image_id}...")
     
     HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
@@ -148,6 +180,7 @@ if image_id:
             info = response.json()
         except Exception as e:
             track_ga_event("antenati_error", {"error_type": "info_json", "image_id": image_id})
+            log_to_gsheets("error_logs", [APP_NAME, user_input, "Stitching Error (Info JSON)", str(e), traceback.format_exc()])
             raise e
         
         w, h = info["width"], info["height"]
@@ -170,18 +203,21 @@ if image_id:
                 tile_url = f"{base_url}/{x},{y},{tile_w},{tile_h}/full/0/default.jpg"
                 
                 status_msg.text(f"Downloading tile {tile_count} of {total_tiles}...")
+                
                 try:
-                    res = requests.get(tile_url, headers=HEADERS)
-                    res.raise_for_status()
-                    tile_data = Image.open(BytesIO(res.content))
+                    tile_res = requests.get(tile_url, headers=HEADERS)
+                    tile_res.raise_for_status()
+                    tile_data = Image.open(BytesIO(tile_res.content))
                     
                     status_msg.text(f"Stitching tile {tile_count} of {total_tiles}...")
                     final_img.paste(tile_data, (x, y))
-                    progress_bar.progress(tile_count / total_tiles)
                 except Exception as e:
                     track_ga_event("antenati_error", {"error_type": "tile_download", "image_id": image_id})
+                    log_to_gsheets("error_logs", [APP_NAME, user_input, "Stitching Error (Tile)", str(e), traceback.format_exc()])
                     raise e
-
+                
+                progress_bar.progress(tile_count / total_tiles)
+        
         # --- ADD FOOTER AND METADATA ---
         status_msg.text("Finalizing image and metadata...")
         footer_height = 60
@@ -205,30 +241,28 @@ if image_id:
         # Prepare for download
         buf = BytesIO()
         final_with_footer.save(buf, format="JPEG", quality=95, subsampling=0, exif=exif)
-        
-        # --- TRACKING CALL ---
-        track_ga_event("image_stitched", {"image_id": image_id})
+        img_bytes = buf.getvalue()
 
         status_msg.empty()
         st.success("✅ Ready!")
-        
+        progress_bar.empty()
+
         # Determine descriptive filename
         save_name = f"{ark_unit}_{image_id}.jpg" if ark_unit else f"{image_id}.jpg"
 
         # --- 2. DOWNLOAD BUTTON TRACKING ---
         download_clicked = st.download_button(
-            label="📥 Download Image",
-            data=buf.getvalue(),
-            file_name=save_name,
-            mime="image/jpeg"
+                label="📥 Download Image",
+                data=img_bytes,
+                file_name=save_name,
+                mime="image/jpeg"
         )
         if download_clicked:
             track_ga_event("download_button_pushed", {"image_id": image_id})
-        
-        # Also show a preview
-        st.image(buf.getvalue(), caption="Preview", use_container_width=True)
 
+        # Also show a preview
+        st.image(img_bytes, caption="Preview", use_container_width=True)
+        
     except Exception as e:
-        # --- 4. ANTENATI ERROR TRACKING ---
-        # The specific error types are now handled in the inner try/except blocks
         st.error(f"Could not retrieve image data. Please ensure the link is correct. (Technical Error: {e})")
+        log_to_gsheets("error_logs", [APP_NAME, user_input, "Fetch/Metadata Error", str(e), traceback.format_exc()])
