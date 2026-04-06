@@ -185,7 +185,7 @@ if image_id:
                 info = response.json()
             except Exception as e:
                 track_ga_event("antenati_error", {"error_type": "info_json", "image_id": image_id})
-                log_to_gsheets("error_logs", [APP_NAME, user_input, "Stitching Error (Info JSON)", str(e), traceback.format_exc()])
+                log_to_gsheets("error_logs", [APP_NAME, ark_unit, user_input, "Stitching Error (Info JSON)", str(e), traceback.format_exc()])
                 raise e
             
             w, h = info["width"], info["height"]
@@ -218,7 +218,7 @@ if image_id:
                         final_img.paste(tile_data, (x, y))
                     except Exception as e:
                         track_ga_event("antenati_error", {"error_type": "tile_download", "image_id": image_id})
-                        log_to_gsheets("error_logs", [APP_NAME, user_input, "Stitching Error (Tile)", str(e), traceback.format_exc()])
+                        log_to_gsheets("error_logs", [APP_NAME, ark_unit, user_input, "Stitching Error (Tile)", str(e), traceback.format_exc()])
                         raise e
                     
                     progress_bar.progress(tile_count / total_tiles)
@@ -259,7 +259,7 @@ if image_id:
 
         except Exception as e:
             st.error(f"Could not retrieve image data. Please ensure the link is correct. (Technical Error: {e})")
-            log_to_gsheets("error_logs", [APP_NAME, user_input, "Fetch/Metadata Error", str(e), traceback.format_exc()])
+            log_to_gsheets("error_logs", [APP_NAME, ark_unit, user_input, "Fetch/Metadata Error", str(e), traceback.format_exc()])
             st.stop() # Prevent showing a broken preview
 
     # Determine descriptive filename
