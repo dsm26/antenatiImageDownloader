@@ -159,110 +159,121 @@ if user_input:
         """)
 
 if image_id:
-    # --- TRACK IMAGE VIEW (only once per ID) ---
-    if "last_stitched_id" not in st.session_state or st.session_state.last_stitched_id != image_id:
-        track_ga_event("image_stitched", {"image_id": image_id})
-        log_to_gsheets("usage_logs", [APP_NAME, ark_unit, user_input])
-        st.session_state.last_stitched_id = image_id
+    # Check if we have this specific image already in the session cache
+    if "cached_img_bytes" in st.session_state and st.session_state.cached_id == image_id:
+        img_bytes = st.session_state.cached_img_bytes
+        ark_unit = st.session_state.cached_ark_unit
+    else:
+        # --- TRACK IMAGE VIEW (only once per ID) ---
+        if "last_stitched_id" not in st.session_state or st.session_state.last_stitched_id != image_id:
+            track_ga_event("image_stitched", {"image_id": image_id})
+            log_to_gsheets("usage_logs", [APP_NAME, ark_unit, user_input])
+            st.session_state.last_stitched_id = image_id
 
-    st.info(f"Processing ID: {image_id}...")
-    
-    HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
-    base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
-    
-    try:
-        # Fetch Metadata
-        status_msg = st.empty()
-        status_msg.text("Getting the original information for the page...")
+        st.info(f"Processing ID: {image_id}...")
+        
+        HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
+        base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
+        
         try:
-            response = requests.get(f"{base_url}/info.json", headers=HEADERS)
-            response.raise_for_status() # Ensure we got a 200 OK
-            info = response.json()
-        except Exception as e:
-            track_ga_event("antenati_error", {"error_type": "info_json", "image_id": image_id})
-            log_to_gsheets("error_logs", [APP_NAME, user_input, "Stitching Error (Info JSON)", str(e), traceback.format_exc()])
-            raise e
-        
-        w, h = info["width"], info["height"]
-        tw = info["tiles"][0]["width"]
-        th = info["tiles"][0].get("height", tw)
-        
-        final_img = Image.new("RGB", (w, h))
-        cols, rows = math.ceil(w / tw), math.ceil(h / th)
-        total_tiles = cols * rows
-        
-        progress_bar = st.progress(0)
-        
-        # Download and Stitch
-        tile_count = 0
-        for r in range(rows):
-            for c in range(cols):
-                tile_count += 1
-                x, y = c * tw, r * th
-                tile_w, tile_h = min(tw, w - x), min(th, h - y)
-                tile_url = f"{base_url}/{x},{y},{tile_w},{tile_h}/full/0/default.jpg"
-                
-                status_msg.text(f"Downloading tile {tile_count} of {total_tiles}...")
-                
-                try:
-                    tile_res = requests.get(tile_url, headers=HEADERS)
-                    tile_res.raise_for_status()
-                    tile_data = Image.open(BytesIO(tile_res.content))
+            # Fetch Metadata
+            status_msg = st.empty()
+            status_msg.text("Getting the original information for the page...")
+            try:
+                response = requests.get(f"{base_url}/info.json", headers=HEADERS)
+                response.raise_for_status() # Ensure we got a 200 OK
+                info = response.json()
+            except Exception as e:
+                track_ga_event("antenati_error", {"error_type": "info_json", "image_id": image_id})
+                log_to_gsheets("error_logs", [APP_NAME, user_input, "Stitching Error (Info JSON)", str(e), traceback.format_exc()])
+                raise e
+            
+            w, h = info["width"], info["height"]
+            tw = info["tiles"][0]["width"]
+            th = info["tiles"][0].get("height", tw)
+            
+            final_img = Image.new("RGB", (w, h))
+            cols, rows = math.ceil(w / tw), math.ceil(h / th)
+            total_tiles = cols * rows
+            
+            progress_bar = st.progress(0)
+            
+            # Download and Stitch
+            tile_count = 0
+            for r in range(rows):
+                for c in range(cols):
+                    tile_count += 1
+                    x, y = c * tw, r * th
+                    tile_w, tile_h = min(tw, w - x), min(th, h - y)
+                    tile_url = f"{base_url}/{x},{y},{tile_w},{tile_h}/full/0/default.jpg"
                     
-                    status_msg.text(f"Stitching tile {tile_count} of {total_tiles}...")
-                    final_img.paste(tile_data, (x, y))
-                except Exception as e:
-                    track_ga_event("antenati_error", {"error_type": "tile_download", "image_id": image_id})
-                    log_to_gsheets("error_logs", [APP_NAME, user_input, "Stitching Error (Tile)", str(e), traceback.format_exc()])
-                    raise e
-                
-                progress_bar.progress(tile_count / total_tiles)
-        
-        # --- ADD FOOTER AND METADATA ---
-        status_msg.text("Finalizing image and metadata...")
-        footer_height = 60
-        final_with_footer = Image.new("RGB", (w, h + footer_height), (255, 255, 255))
-        final_with_footer.paste(final_img, (0, 0))
-        
-        draw = ImageDraw.Draw(final_with_footer)
-        try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 35)
-        except:
-            font = ImageFont.load_default()
+                    status_msg.text(f"Downloading tile {tile_count} of {total_tiles}...")
+                    
+                    try:
+                        tile_res = requests.get(tile_url, headers=HEADERS)
+                        tile_res.raise_for_status()
+                        tile_data = Image.open(BytesIO(tile_res.content))
+                        
+                        status_msg.text(f"Stitching tile {tile_count} of {total_tiles}...")
+                        final_img.paste(tile_data, (x, y))
+                    except Exception as e:
+                        track_ga_event("antenati_error", {"error_type": "tile_download", "image_id": image_id})
+                        log_to_gsheets("error_logs", [APP_NAME, user_input, "Stitching Error (Tile)", str(e), traceback.format_exc()])
+                        raise e
+                    
+                    progress_bar.progress(tile_count / total_tiles)
+            
+            # --- ADD FOOTER AND METADATA ---
+            status_msg.text("Finalizing image and metadata...")
+            footer_height = 60
+            final_with_footer = Image.new("RGB", (w, h + footer_height), (255, 255, 255))
+            final_with_footer.paste(final_img, (0, 0))
+            
+            draw = ImageDraw.Draw(final_with_footer)
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 35)
+            except:
+                font = ImageFont.load_default()
 
-        footer_text = f"Source: {user_input}"
-        draw.text((20, h + 10), footer_text, fill=(0, 0, 0), font=font)
+            footer_text = f"Source: {user_input}"
+            draw.text((20, h + 10), footer_text, fill=(0, 0, 0), font=font)
 
-        # Embed EXIF metadata
-        exif = final_with_footer.getexif()
-        exif[270] = f"Source: {user_input}"
-        exif[37510] = f"Source: {user_input}"
+            # Embed EXIF metadata
+            exif = final_with_footer.getexif()
+            exif[270] = f"Source: {user_input}"
+            exif[37510] = f"Source: {user_input}"
 
-        # Prepare for download
-        buf = BytesIO()
-        final_with_footer.save(buf, format="JPEG", quality=95, subsampling=0, exif=exif)
-        img_bytes = buf.getvalue()
+            # Prepare for download
+            buf = BytesIO()
+            final_with_footer.save(buf, format="JPEG", quality=95, subsampling=0, exif=exif)
+            img_bytes = buf.getvalue()
 
-        status_msg.empty()
-        st.success("✅ Ready!")
-        progress_bar.empty()
+            # Cache the result in session state
+            st.session_state.cached_img_bytes = img_bytes
+            st.session_state.cached_id = image_id
+            st.session_state.cached_ark_unit = ark_unit
 
-        # Determine descriptive filename
-        save_name = f"{ark_unit}_{image_id}.jpg" if ark_unit else f"{image_id}.jpg"
+            status_msg.empty()
+            st.success("✅ Ready!")
+            progress_bar.empty()
 
-        # --- 2. DOWNLOAD BUTTON TRACKING ---
-        download_clicked = st.download_button(
-                label="📥 Download Image",
-                data=img_bytes,
-                file_name=save_name,
-                mime="image/jpeg"
-        )
-        if download_clicked:
-            track_ga_event("download_button_pushed", {"image_id": image_id})
+        except Exception as e:
+            st.error(f"Could not retrieve image data. Please ensure the link is correct. (Technical Error: {e})")
+            log_to_gsheets("error_logs", [APP_NAME, user_input, "Fetch/Metadata Error", str(e), traceback.format_exc()])
+            st.stop() # Prevent showing a broken preview
 
-        # Also show a preview
-        st.image(img_bytes, caption="Preview", use_container_width=True)
-        
-    except Exception as e:
-        st.error(f"Could not retrieve image data. Please ensure the link is correct. (Technical Error: {e})")
-        log_to_gsheets("error_logs", [APP_NAME, user_input, "Fetch/Metadata Error", str(e), traceback.format_exc()])
+    # Determine descriptive filename
+    save_name = f"{ark_unit}_{image_id}.jpg" if ark_unit else f"{image_id}.jpg"
+
+    # --- 2. DOWNLOAD BUTTON TRACKING ---
+    download_clicked = st.download_button(
+            label="📥 Download Image",
+            data=img_bytes,
+            file_name=save_name,
+            mime="image/jpeg"
+    )
+    if download_clicked:
+        track_ga_event("download_button_pushed", {"image_id": image_id})
+
+    # Also show a preview
+    st.image(img_bytes, caption="Preview", use_container_width=True)
