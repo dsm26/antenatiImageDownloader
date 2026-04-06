@@ -123,6 +123,17 @@ def get_canvas_id_url(url):
     try:
         HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
         resp = requests.get(url, headers=HEADERS, timeout=5)
+
+        # This goes to your terminal/console
+        print(f"DEBUG: Status Code: {resp.status_code}")
+        print(f"DEBUG: HTML length: {len(resp.text)}")
+
+        # Check if the string even exists in the raw HTML
+        if "canvasId" in resp.text:
+            print("DEBUG: 'canvasId' WAS found in the HTML string.")
+        else:
+            print("DEBUG: 'canvasId' NOT found in the HTML. (Possible JS rendering issue)")
+
         if resp.status_code == 200:
             match = re.search(r"canvasId:\s*'([^']+)'", resp.text)
             if match:
@@ -297,7 +308,11 @@ if image_id:
             st.session_state.cached_ark_unit = ark_unit
 
             status_msg.empty()
-            st.success("✅ Ready!")
+            if processing_url != original_input:
+                successMessage = f"✅ Ready! Used {processing_url} instead of {original_input}."
+            else:
+                successMessage = "✅ Ready!"
+            st.success(successMessage)
             progress_bar.empty()
 
         except Exception as e:
