@@ -137,20 +137,20 @@ user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 # Logic to extract ID from URL if necessary
 image_id = ""
 ark_unit = ""
-processing_url = user_input.strip()
+original_input = user_input.strip()
+processing_url = original_input
 
 if processing_url:
-    # --- NEW: an_ud INTERCEPTOR ---
-    is_document_unit = "/an_ud" in processing_url
-    if is_document_unit:
+    # --- an_ud INTERCEPTOR ---
+    if "/an_ud" in processing_url:
         with st.spinner("🔍 Document unit detected. Finding specific record link..."):
             redirected = get_canvas_id_url(processing_url)
             if redirected:
                 processing_url = redirected
-
-    # PERSISTENT NOTIFICATION: Outside the spinner and the update logic
-    if is_document_unit and "ark:/12657/" in processing_url:
-        st.info(f"**Note:** Using URL: `{processing_url}`. This is necessary to locate requested image.")
+        
+        # Notify user of URL switching
+        if processing_url != original_input:
+            st.info(f"**Note:** Using link: `{processing_url}`. Links with an_ud in them are not directly downloadable.")
 
     # Check if it's a valid official ARK URL
     if "ark:/12657/" in processing_url:
@@ -164,7 +164,7 @@ if processing_url:
             ark_unit = path_parts[-2]
             track_ga_event("ark_components_tracked", {"ark_unit": ark_unit, "ark_id": image_id})
 
-            # --- NEW: TRACK FULL RECONSTRUCTED PATH ---
+            # TRACK FULL RECONSTRUCTED PATH
             ark_path = f"{ark_unit}/{image_id}"
             track_ga_event("record_path_logged", {"ark_path": ark_path})
 
@@ -192,8 +192,16 @@ if image_id:
     else:
         # --- TRACK IMAGE VIEW (only once per ID) ---
         if "last_stitched_id" not in st.session_state or st.session_state.last_stitched_id != image_id:
-            track_ga_event("image_stitched", {"image_id": image_id})
-            log_to_gsheets("usage_logs", [APP_NAME, ark_unit, user_input])
+            # Add original URL to logs if a swap occurred
+            log_params = {"image_id": image_id}
+            usage_row = [APP_NAME, ark_unit, processing_url]
+            
+            if processing_url != original_input:
+                log_params["original_input"] = original_input
+                usage_row.append(f"{original_input}")
+
+            track_ga_event("image_stitched", log_params)
+            log_to_gsheets("usage_logs", usage_row)
             st.session_state.last_stitched_id = image_id
 
         st.info(f"Processing ID: {image_id}...")
@@ -210,8 +218,12 @@ if image_id:
                 response.raise_for_status() # Ensure we got a 200 OK
                 info = response.json()
             except Exception as e:
+                err_row = [APP_NAME, ark_unit, processing_url, "Stitching Error (Info JSON)", str(e), traceback.format_exc()]
+                if processing_url != original_input:
+                    err_row.append(original_input)
+                
                 track_ga_event("antenati_error", {"error_type": "info_json", "image_id": image_id})
-                log_to_gsheets("error_logs", [APP_NAME, ark_unit, user_input, "Stitching Error (Info JSON)", str(e), traceback.format_exc()])
+                log_to_gsheets("error_logs", err_row)
                 raise e
 
             w, h = info["width"], info["height"]
@@ -243,8 +255,13 @@ if image_id:
                         status_msg.text(f"Stitching tile {tile_count} of {total_tiles}...")
                         final_img.paste(tile_data, (x, y))
                     except Exception as e:
+                        # Logic for tile error logging
+                        tile_err_row = [APP_NAME, ark_unit, processing_url, "Stitching Error (Tile)", str(e), traceback.format_exc()]
+                        if processing_url != original_input:
+                            tile_err_row.append(original_input)
+                            
                         track_ga_event("antenati_error", {"error_type": "tile_download", "image_id": image_id})
-                        log_to_gsheets("error_logs", [APP_NAME, ark_unit, user_input, "Stitching Error (Tile)", str(e), traceback.format_exc()])
+                        log_to_gsheets("error_logs", tile_err_row)
                         raise e
 
                     progress_bar.progress(tile_count / total_tiles)
@@ -261,13 +278,13 @@ if image_id:
             except:
                 font = ImageFont.load_default()
 
-            footer_text = f"Source: {user_input}"
+            footer_text = f"Source: {processing_url}"
             draw.text((20, h + 10), footer_text, fill=(0, 0, 0), font=font)
 
             # Embed EXIF metadata
             exif = final_with_footer.getexif()
-            exif[270] = f"Source: {user_input}"
-            exif[37510] = f"Source: {user_input}"
+            exif[270] = f"Source: {processing_url}"
+            exif[37510] = f"Source: {processing_url}"
 
             # Prepare for download
             buf = BytesIO()
@@ -285,8 +302,8 @@ if image_id:
 
         except Exception as e:
             st.error(f"Could not retrieve image data. Please ensure the link is correct. (Technical Error: {e})")
-            log_to_gsheets("error_logs", [APP_NAME, ark_unit, user_input, "Fetch/Metadata Error", str(e), traceback.format_exc()])
-            st.stop() # Prevent showing a broken preview
+            # don't log to gsheets here, logging happens earlier.
+            st.stop()
 
     # Determine descriptive filename
     save_name = f"{ark_unit}_{image_id}.jpg" if ark_unit else f"{image_id}.jpg"
@@ -300,6 +317,7 @@ if image_id:
             )
     if download_clicked:
         track_ga_event("download_button_pushed", {"image_id": image_id})
+        #log_to_gsheets("usage_logs", [f"{APP_NAME} (Download)", ark_unit, processing_url])
 
     # Also show a preview
     st.image(img_bytes, caption="Preview", use_container_width=True)
