@@ -146,7 +146,9 @@ if processing_url:
             redirected = get_canvas_id_url(processing_url)
             if redirected:
                 processing_url = redirected
-                st.info(f"**Note:** Using URL: `{processing_url}`. This is necessary to locate requested image.")
+
+        if "/an_ud" in user_input.strip(): # Check if original input was a unit
+            st.info(f"**Note:** Using URL: `{processing_url}`. This is necessary to locate requested image.")
 
     # Check if it's a valid official ARK URL
     if "ark:/12657/" in processing_url:
