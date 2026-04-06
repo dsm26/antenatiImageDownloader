@@ -9,6 +9,7 @@ import uuid
 import subprocess
 from datetime import datetime
 import traceback
+import re
 
 # --- CONFIGURATION ---
 APP_NAME = "Antenati Image Downloader"
@@ -39,24 +40,24 @@ def track_ga_event(event_name, extra_params=None):
         # Get real user info for better reporting
         user_ip = st.context.headers.get("X-Forwarded-For", "0.0.0.0").split(",")[0]
         user_agent = st.context.headers.get("User-Agent", "Unknown")
-        
+
         if "ga_client_id" not in st.session_state:
             st.session_state.ga_client_id = str(uuid.uuid4())
 
         url = f"https://www.google-analytics.com/mp/collect?measurement_id={GA_MEASUREMENT_ID}&api_secret={GA_API_SECRET}"
-        
+
         payload = {
-            "client_id": st.session_state.ga_client_id,
-            "events": [{
-                "name": event_name,
-                "params": {
-                    "ip_override": user_ip,
-                    "user_agent": user_agent,
-                    "engagement_time_msec": "1",
-                    **(extra_params or {})
+                "client_id": st.session_state.ga_client_id,
+                "events": [{
+                    "name": event_name,
+                    "params": {
+                        "ip_override": user_ip,
+                        "user_agent": user_agent,
+                        "engagement_time_msec": "1",
+                        **(extra_params or {})
+                        }
+                    }]
                 }
-            }]
-        }
         requests.post(url, json=payload, timeout=2)
     except:
         pass
@@ -69,12 +70,12 @@ def log_to_gsheets(sheet_name, row_data):
         return
 
     client_id = st.session_state.get("ga_client_id", "unknown_session")
-    
+
     payload = {
-        "sheetName": sheet_name,
-        "rowData": [datetime.now().strftime('%Y-%m-%d %H:%M:%S'), client_id] + row_data
-    }
-    
+            "sheetName": sheet_name,
+            "rowData": [datetime.now().strftime('%Y-%m-%d %H:%M:%S'), client_id] + row_data
+            }
+
     try:
         requests.post(script_url, json=payload, timeout=5)
     except:
@@ -117,43 +118,64 @@ with st.expander("📖 Instructions & Related Tools"):
     st.divider() # Adds a thin line
     st.caption(get_git_info())
 
+def get_canvas_id_url(url):
+    """Parses the Antenati HTML to extract the hidden canvasId URL."""
+    try:
+        HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
+        resp = requests.get(url, headers=HEADERS, timeout=5)
+        if resp.status_code == 200:
+            match = re.search(r"canvasId:\s*'([^']+)'", resp.text)
+            if match:
+                return match.group(1)
+    except:
+        pass
+    return None
+
 # 2. Input Field (Auto-filled if ID is in URL)
 user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 
 # Logic to extract ID from URL if necessary
 image_id = ""
 ark_unit = ""
-if user_input:
-    cleaned_input = user_input.strip()
-    
+processing_url = user_input.strip()
+
+if processing_url:
+    # --- NEW: an_ud INTERCEPTOR ---
+    if "/an_ud" in processing_url:
+        with st.spinner("🔍 Document unit detected. Finding specific record link..."):
+            redirected = get_canvas_id_url(processing_url)
+            if redirected:
+                processing_url = redirected
+                st.info(f"**Note:** Using URL: `{processing_url}`. This is necessary to locate requested image.")
+
     # Check if it's a valid official ARK URL
-    if "ark:/12657/" in cleaned_input:
-        parsed_path = urlparse(cleaned_input).path.rstrip('/')
+    if "ark:/12657/" in processing_url:
+        parsed_path = urlparse(processing_url).path.rstrip('/')
         path_parts = parsed_path.split('/')
         image_id = path_parts[-1]
-        
+
         # --- 5. TRACK ARK COMPONENTS ---
         # Extracting the 'an_ua...' part and the unique ID
         if len(path_parts) >= 2:
             ark_unit = path_parts[-2]
             track_ga_event("ark_components_tracked", {"ark_unit": ark_unit, "ark_id": image_id})
-            
+
             # --- NEW: TRACK FULL RECONSTRUCTED PATH ---
             ark_path = f"{ark_unit}/{image_id}"
             track_ga_event("record_path_logged", {"ark_path": ark_path})
 
     # "Hidden" feature: Check if it's just a raw ID (no slashes, no dots)
-    elif "/" not in cleaned_input and "." not in cleaned_input and len(cleaned_input) > 0:
-        image_id = cleaned_input
+    elif "/" not in processing_url and "." not in processing_url and len(processing_url) > 0:
+    image_id = processing_url
     else:
-        # --- 3. INVALID VALUE TRACKING ---
-        track_ga_event("invalid_input_error", {"input_value": cleaned_input[:50]})
+    # --- 3. INVALID VALUE TRACKING ---
+        track_ga_event("invalid_input_error", {"input_value": processing_url[:50]})
         st.error("""
         **Invalid URL format.** Please use a valid Antenati ARK URL.
-        
+
         **How to find it:**
         On the Antenati portal, click the **'Copia link del bookmark'** button to get the correct link.
-        
+
         **Format should look like:**
         `https://antenati.cultura.gov.it/ark:/12657/an_ua.../XYZ123`
         """)
@@ -171,10 +193,10 @@ if image_id:
             st.session_state.last_stitched_id = image_id
 
         st.info(f"Processing ID: {image_id}...")
-        
+
         HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
         base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
-        
+
         try:
             # Fetch Metadata
             status_msg = st.empty()
@@ -187,17 +209,17 @@ if image_id:
                 track_ga_event("antenati_error", {"error_type": "info_json", "image_id": image_id})
                 log_to_gsheets("error_logs", [APP_NAME, ark_unit, user_input, "Stitching Error (Info JSON)", str(e), traceback.format_exc()])
                 raise e
-            
+
             w, h = info["width"], info["height"]
             tw = info["tiles"][0]["width"]
             th = info["tiles"][0].get("height", tw)
-            
+
             final_img = Image.new("RGB", (w, h))
             cols, rows = math.ceil(w / tw), math.ceil(h / th)
             total_tiles = cols * rows
-            
+
             progress_bar = st.progress(0)
-            
+
             # Download and Stitch
             tile_count = 0
             for r in range(rows):
@@ -206,29 +228,29 @@ if image_id:
                     x, y = c * tw, r * th
                     tile_w, tile_h = min(tw, w - x), min(th, h - y)
                     tile_url = f"{base_url}/{x},{y},{tile_w},{tile_h}/full/0/default.jpg"
-                    
+
                     status_msg.text(f"Downloading tile {tile_count} of {total_tiles}...")
-                    
+
                     try:
                         tile_res = requests.get(tile_url, headers=HEADERS)
                         tile_res.raise_for_status()
                         tile_data = Image.open(BytesIO(tile_res.content))
-                        
+
                         status_msg.text(f"Stitching tile {tile_count} of {total_tiles}...")
                         final_img.paste(tile_data, (x, y))
                     except Exception as e:
                         track_ga_event("antenati_error", {"error_type": "tile_download", "image_id": image_id})
                         log_to_gsheets("error_logs", [APP_NAME, ark_unit, user_input, "Stitching Error (Tile)", str(e), traceback.format_exc()])
                         raise e
-                    
+
                     progress_bar.progress(tile_count / total_tiles)
-            
+
             # --- ADD FOOTER AND METADATA ---
             status_msg.text("Finalizing image and metadata...")
             footer_height = 60
             final_with_footer = Image.new("RGB", (w, h + footer_height), (255, 255, 255))
             final_with_footer.paste(final_img, (0, 0))
-            
+
             draw = ImageDraw.Draw(final_with_footer)
             try:
                 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 35)
@@ -271,7 +293,7 @@ if image_id:
             data=img_bytes,
             file_name=save_name,
             mime="image/jpeg"
-    )
+            )
     if download_clicked:
         track_ga_event("download_button_pushed", {"image_id": image_id})
 
