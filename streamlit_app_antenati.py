@@ -166,7 +166,7 @@ if processing_url:
 
     # "Hidden" feature: Check if it's just a raw ID (no slashes, no dots)
     elif "/" not in processing_url and "." not in processing_url and len(processing_url) > 0:
-    image_id = processing_url
+        image_id = processing_url
     else:
     # --- 3. INVALID VALUE TRACKING ---
         track_ga_event("invalid_input_error", {"input_value": processing_url[:50]})
