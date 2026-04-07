@@ -14,6 +14,11 @@ import re
 # --- CONFIGURATION ---
 APP_NAME = "Antenati Image Downloader"
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Referer": "https://antenati.cultura.gov.it/"
+}
+
 # --- GOOGLE ANALYTICS VIA SECRETS ---
 # These pull from .streamlit/secrets.toml or Streamlit Cloud Secrets
 GA_MEASUREMENT_ID = st.secrets.get("GA_MEASUREMENT_ID")
@@ -227,7 +232,6 @@ if image_id:
 
         st.info(f"Processing ID: {image_id}...")
 
-        HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
         base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
 
         try:
