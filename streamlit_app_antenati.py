@@ -122,7 +122,20 @@ def get_canvas_id_url(url):
     """Parses the Antenati HTML to extract the hidden canvasId URL."""
     try:
         print(f"DEBUG: Attempting to scrape: {url}")
-        HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
+        HEADERS = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,it;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Referer": "https://antenati.cultura.gov.it/",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-User": "?1",
+            "Upgrade-Insecure-Requests": "1"
+        }
         resp = requests.get(url, headers=HEADERS, timeout=5)
 
         # This goes to your terminal/console
@@ -139,6 +152,9 @@ def get_canvas_id_url(url):
             match = re.search(r"canvasId:\s*'([^']+)'", resp.text)
             if match:
                 return match.group(1)
+        elif resp.status_code == 403:
+             st.write("DEBUG: Hit a 403 Forbidden.")
+
     except:
         pass
     return None
