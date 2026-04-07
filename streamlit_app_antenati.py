@@ -121,6 +121,7 @@ with st.expander("📖 Instructions & Related Tools"):
 def get_canvas_id_url(url):
     """Parses the Antenati HTML to extract the hidden canvasId URL."""
     try:
+        print(f"DEBUG: Attempting to scrape: {url}")
         HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
         resp = requests.get(url, headers=HEADERS, timeout=5)
 
