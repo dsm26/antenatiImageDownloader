@@ -155,7 +155,7 @@ processing_url = original_input
 if processing_url:
     # --- an_ud INTERCEPTOR ---
     if "/an_ud" in processing_url:
-        print(f"DEBUG2: Attempting to scrape: {url}")
+        print(f"DEBUG2: Attempting to scrape: {processing_url}")
         with st.spinner("🔍 Document unit detected. Finding specific record link..."):
             redirected = get_canvas_id_url(processing_url)
             if redirected:
