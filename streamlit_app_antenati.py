@@ -1,22 +1,22 @@
 import streamlit as st
 import math
 import requests
+import re
+import json
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
-from urllib.parse import urlparse  # Added for robust URL parsing
-import json
-import uuid
 import subprocess
 from datetime import datetime
+import uuid
 import traceback
-import re
+from urllib.parse import urlparse  # Added for robust URL parsing
 
 # --- CONFIGURATION ---
 APP_NAME = "Antenati Image Downloader"
 APP_ICON = "🏛️"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Referer": "https://antenati.cultura.gov.it/"
 }
 
@@ -34,9 +34,9 @@ def get_git_info():
         return f"Build: {sha} | {commit_date}"
     except:
         # Fallback if git is not available
-        from datetime import datetime
         return f"Last Refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
 
+# --- GOOGLE ANALYTICS TRACKING ---
 def track_ga_event(event_name, extra_params=None):
     """Sends a server-side event to GA4 using Streamlit Secrets."""
     try:
