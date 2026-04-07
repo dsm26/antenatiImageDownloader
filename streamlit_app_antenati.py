@@ -126,14 +126,14 @@ def get_canvas_id_url(url):
         resp = requests.get(url, headers=HEADERS, timeout=5)
 
         # This goes to your terminal/console
-        print(f"DEBUG: Status Code: {resp.status_code}")
-        print(f"DEBUG: HTML length: {len(resp.text)}")
+        st.write(f"DEBUG: Status Code: {resp.status_code}")
+        st.write(f"DEBUG: HTML length: {len(resp.text)}")
 
         # Check if the string even exists in the raw HTML
         if "canvasId" in resp.text:
-            print("DEBUG: 'canvasId' WAS found in the HTML string.")
+            st.write("DEBUG: 'canvasId' WAS found in the HTML string.")
         else:
-            print("DEBUG: 'canvasId' NOT found in the HTML. (Possible JS rendering issue)")
+            st.write("DEBUG: 'canvasId' NOT found in the HTML. (Possible JS rendering issue)")
 
         if resp.status_code == 200:
             match = re.search(r"canvasId:\s*'([^']+)'", resp.text)
@@ -155,7 +155,7 @@ processing_url = original_input
 if processing_url:
     # --- an_ud INTERCEPTOR ---
     if "/an_ud" in processing_url:
-        print(f"DEBUG2: Attempting to scrape: {processing_url}")
+        st.write(f"DEBUG2: Attempting to scrape: {processing_url}")
         with st.spinner("🔍 Document unit detected. Finding specific record link..."):
             redirected = get_canvas_id_url(processing_url)
             if redirected:
