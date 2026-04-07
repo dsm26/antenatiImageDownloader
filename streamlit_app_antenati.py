@@ -158,6 +158,10 @@ original_input = user_input.strip()
 processing_url = original_input
 
 if processing_url:
+    # --- STRIP QUERY PARAMETERS ---
+    if "?" in processing_url:
+        processing_url = processing_url.split("?")[0]
+
     # --- an_ud INTERCEPTOR ---
     if "/an_ud" in processing_url:
         with st.spinner("🔍 Document unit detected. Finding specific record link..."):
