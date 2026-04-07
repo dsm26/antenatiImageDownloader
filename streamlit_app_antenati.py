@@ -13,6 +13,7 @@ import re
 
 # --- CONFIGURATION ---
 APP_NAME = "Antenati Image Downloader"
+APP_ICON = "🏛️"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0",
@@ -95,8 +96,8 @@ if "page_loaded" not in st.session_state:
 query_params = st.query_params
 url_id = query_params.get("image_id", "")
 
-st.set_page_config(page_title=APP_NAME, page_icon="🏛️")
-st.title(f"🏛️ {APP_NAME}")
+st.set_page_config(page_title=APP_NAME, page_icon=APP_ICON)
+st.title(f"{APP_ICON} {APP_NAME}")
 
 with st.expander("📖 Instructions & Related Tools"):
     st.write("""
