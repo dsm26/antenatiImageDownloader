@@ -121,7 +121,6 @@ with st.expander("📖 Instructions & Related Tools"):
 def get_canvas_id_url(url):
     """Parses the Antenati HTML to extract the hidden canvasId URL."""
     try:
-        st.write(f"DEBUG: Attempting to scrape: {url}")
         HEADERS = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -138,22 +137,12 @@ def get_canvas_id_url(url):
         }
         resp = requests.get(url, headers=HEADERS, timeout=5)
 
-        # This goes to your terminal/console
-        st.write(f"DEBUG: Status Code: {resp.status_code}")
-        st.write(f"DEBUG: HTML length: {len(resp.text)}")
-
-        # Check if the string even exists in the raw HTML
-        if "canvasId" in resp.text:
-            st.write("DEBUG: 'canvasId' WAS found in the HTML string.")
-        else:
-            st.write("DEBUG: 'canvasId' NOT found in the HTML. (Possible JS rendering issue)")
-
         if resp.status_code == 200:
             match = re.search(r"canvasId:\s*'([^']+)'", resp.text)
             if match:
                 return match.group(1)
         elif resp.status_code == 403:
-             st.write("DEBUG: Hit a 403 Forbidden.")
+             st.write(f"DEBUG: 403 Forbidden received for {url}")
 
     except:
         pass
@@ -171,7 +160,6 @@ processing_url = original_input
 if processing_url:
     # --- an_ud INTERCEPTOR ---
     if "/an_ud" in processing_url:
-        st.write(f"DEBUG2: Attempting to scrape: {processing_url}")
         with st.spinner("🔍 Document unit detected. Finding specific record link..."):
             redirected = get_canvas_id_url(processing_url)
             if redirected:
