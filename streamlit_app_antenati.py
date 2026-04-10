@@ -314,9 +314,15 @@ if image_id:
 
             status_msg.empty()
             if processing_url != original_input:
-                successMessage = f"✅ Ready! Used {processing_url} instead of {original_input}."
+                successMessage = (
+                    f"✅ Ready! Used {processing_url} instead of {original_input}."
+                    f"\n\nNeed translation? Use the [Antenati Image AI Translator](https://antenati-image-translator.streamlit.app/)."
+                )
             else:
-                successMessage = "✅ Ready!"
+                successMessage = (
+                    "✅ Ready!"
+                    f"\n\nNeed translation? Use the [Antenati Image AI Translator](https://antenati-image-translator.streamlit.app/)."
+                )
             st.success(successMessage)
             progress_bar.empty()
 
