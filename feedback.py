@@ -5,7 +5,7 @@ from api_helpers import track_ga_event, log_to_gsheets
 
 def show_feedback_form(app_name, headers):
     st.divider()
-    with st.expander("💬 Help improve this tool: Send Feedback or Suggestions"):
+    with st.expander("💬 Send feedback or suggestions"):
         with st.form("feedback_form", clear_on_submit=True):
             f_email = st.text_input("Email (Optional):", placeholder="your@email.com")
             f_message = st.text_area("Message / Suggestion (Required):", placeholder="What's on your mind?")
@@ -32,6 +32,6 @@ def show_feedback_form(app_name, headers):
                         log_to_gsheets("feedback", feedback_row)
                         track_ga_event("feedback_submitted")
                         
-                        st.success("Thank you! Your feedback has been sent to the developer.")
+                        st.success("Thank you! Your feedback has been sent.")
                     except Exception as e:
                         st.error(f"Error sending feedback. Please try again later. ({e})")
