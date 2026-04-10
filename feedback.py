@@ -23,8 +23,6 @@ def show_feedback_form(app_name, headers):
                             st.session_state.session_id = session_id
                         
                         feedback_row = [
-                            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            session_id,
                             f_email.strip() if f_email else "Anonymous",
                             f_message.strip(),
                             headers.get("User-Agent", "Unknown"), # Browser context
