@@ -14,6 +14,7 @@ from git_utils import get_git_info
 from api_helpers import track_ga_event, log_to_gsheets
 from instructions import show_instructions
 from input_validator import validate_antenati_url
+from feedback import show_feedback_form
 
 # --- CONFIGURATION ---
 APP_NAME = "Antenati Image Downloader"
@@ -211,3 +212,6 @@ if image_id:
 
     # Also show a preview
     st.image(img_bytes, caption="Preview", use_container_width=True)
+
+# --- FINAL UI ELEMENTS ---
+show_feedback_form(APP_NAME, HEADERS)
