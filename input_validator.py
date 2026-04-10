@@ -56,6 +56,7 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url):
         else:
         # --- 3. INVALID VALUE TRACKING ---
             track_ga_event("invalid_input_error", {"input_value": processing_url[:50]})
+            log_to_gsheets("error_logs", [APP_NAME, "N/A", original_input, "User Input Error", "Invalid URL format"])
             st.error("""
             **Invalid URL format.** Please use a valid Antenati ARK URL.
 
