@@ -1,8 +1,8 @@
 import streamlit as st
 from urllib.parse import urlparse
-from api_helpers import track_ga_event
+from api_helpers import track_ga_event, log_to_gsheets
 
-def validate_antenati_url(user_input, url_id, get_canvas_id_url):
+def validate_antenati_url(user_input, url_id, get_canvas_id_url, app_name):
     image_id = ""
     ark_unit = ""
     original_input = user_input.strip()
@@ -11,6 +11,7 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url):
     if processing_url:
         # --- FAMILYSEARCH CHECK ---
         if "familysearch.org" in processing_url.lower():
+            track_ga_event("familysearch_url_error", {"input_value": processing_url[:50]})
             st.warning("""
             **FamilySearch URL detected.**
             
@@ -56,7 +57,9 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url):
         else:
         # --- 3. INVALID VALUE TRACKING ---
             track_ga_event("invalid_input_error", {"input_value": processing_url[:50]})
-            log_to_gsheets("error_logs", [APP_NAME, "N/A", original_input, "User Input Error", "Invalid URL format"])
+            
+            log_to_gsheets("error_logs", [app_name, "N/A", original_input, "User Input Error", "Invalid URL format"])
+            
             st.error("""
             **Invalid URL format.** Please use a valid Antenati ARK URL.
 
@@ -68,4 +71,3 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url):
             """)
             
     return image_id, ark_unit, original_input, processing_url
-

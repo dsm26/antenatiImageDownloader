@@ -72,7 +72,7 @@ def get_canvas_id_url(url):
 user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 
 # --- URL VALIDATION LOGIC ---
-image_id, ark_unit, original_input, processing_url = validate_antenati_url(user_input, url_id, get_canvas_id_url)
+image_id, ark_unit, original_input, processing_url = validate_antenati_url(user_input, url_id, get_canvas_id_url, APP_NAME)
 
 if image_id:
     # Check if we have this specific image already in the session cache
