@@ -76,6 +76,9 @@ user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 image_id, ark_unit, original_input, processing_url = validate_antenati_url(user_input, url_id, get_canvas_id_url, APP_NAME)
 
 if image_id:
+
+    st.info(f"Processing ID: {image_id}...")
+
     # Check if we have this specific image already in the session cache
     if "cached_img_bytes" in st.session_state and st.session_state.cached_id == image_id:
         img_bytes = st.session_state.cached_img_bytes
@@ -94,8 +97,6 @@ if image_id:
             track_ga_event("image_stitched", log_params)
             log_to_gsheets("usage_logs", usage_row)
             st.session_state.last_stitched_id = image_id
-
-        st.info(f"Processing ID: {image_id}...")
 
         base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
 
