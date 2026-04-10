@@ -13,6 +13,7 @@ from urllib.parse import urlparse  # Added for robust URL parsing
 from git_utils import get_git_info
 from api_helpers import track_ga_event, log_to_gsheets
 from instructions import show_instructions
+from input_validator import validate_antenati_url
 
 # --- CONFIGURATION ---
 APP_NAME = "Antenati Image Downloader"
@@ -70,59 +71,8 @@ def get_canvas_id_url(url):
 # 2. Input Field (Auto-filled if ID is in URL)
 user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 
-# Logic to extract ID from URL if necessary
-image_id = ""
-ark_unit = ""
-original_input = user_input.strip()
-processing_url = original_input
-
-if processing_url:
-    # --- STRIP QUERY PARAMETERS ---
-    if "?" in processing_url:
-        processing_url = processing_url.split("?")[0]
-
-    # --- an_ud INTERCEPTOR ---
-    if "/an_ud" in processing_url:
-        with st.spinner("🔍 Document unit detected. Finding specific record link..."):
-            redirected = get_canvas_id_url(processing_url)
-            if redirected:
-                processing_url = redirected
-        
-        # Notify user of URL switching
-        if processing_url != original_input:
-            st.info(f"**Note:** Using link: `{processing_url}`. Links with an_ud in them are not directly downloadable.")
-
-    # Check if it's a valid official ARK URL
-    if "ark:/12657/" in processing_url:
-        parsed_path = urlparse(processing_url).path.rstrip('/')
-        path_parts = parsed_path.split('/')
-        image_id = path_parts[-1]
-
-        # --- 5. TRACK ARK COMPONENTS ---
-        # Extracting the 'an_ua...' part and the unique ID
-        if len(path_parts) >= 2:
-            ark_unit = path_parts[-2]
-            track_ga_event("ark_components_tracked", {"ark_unit": ark_unit, "ark_id": image_id})
-
-            # TRACK FULL RECONSTRUCTED PATH
-            ark_path = f"{ark_unit}/{image_id}"
-            track_ga_event("record_path_logged", {"ark_path": ark_path})
-
-    # "Hidden" feature: Check if it's just a raw ID (no slashes, no dots)
-    elif "/" not in processing_url and "." not in processing_url and len(processing_url) > 0:
-        image_id = processing_url
-    else:
-    # --- 3. INVALID VALUE TRACKING ---
-        track_ga_event("invalid_input_error", {"input_value": processing_url[:50]})
-        st.error("""
-        **Invalid URL format.** Please use a valid Antenati ARK URL.
-
-        **How to find it:**
-        On the Antenati portal, click the **'Copia link del bookmark'** button to get the correct link.
-
-        **Format should look like:**
-        `https://antenati.cultura.gov.it/ark:/12657/an_ua.../XYZ123`
-        """)
+# --- URL VALIDATION LOGIC ---
+image_id, ark_unit, original_input, processing_url = validate_antenati_url(user_input, url_id, get_canvas_id_url)
 
 if image_id:
     # Check if we have this specific image already in the session cache
