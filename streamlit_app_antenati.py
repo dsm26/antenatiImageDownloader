@@ -71,8 +71,11 @@ def get_canvas_id_url(url):
 # 2. Input Field (Auto-filled if ID is in URL)
 user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 
+# Create placeholder place for status messages
+status_placeholder = st.empty()
+
 # --- URL VALIDATION LOGIC ---
-image_id, ark_unit, original_input, processing_url = validate_antenati_url(user_input, url_id, get_canvas_id_url, APP_NAME, FULL_HEADERS)
+image_id, ark_unit, original_input, processing_url = validate_antenati_url(user_input, url_id, get_canvas_id_url, APP_NAME, FULL_HEADERS, status_placeholder)
 
 if image_id:
 
@@ -101,8 +104,7 @@ if image_id:
 
         try:
             # Fetch Metadata
-            status_msg = st.empty()
-            status_msg.text("Getting the original information for the page...")
+            status_placeholder.text("Getting the original information for the page...")
             try:
                 response = requests.get(f"{base_url}/info.json", headers=SIMPLE_HEADERS)
                 response.raise_for_status() # Ensure we got a 200 OK
@@ -135,14 +137,14 @@ if image_id:
                     tile_w, tile_h = min(tw, w - x), min(th, h - y)
                     tile_url = f"{base_url}/{x},{y},{tile_w},{tile_h}/full/0/default.jpg"
 
-                    status_msg.text(f"Downloading tile {tile_count} of {total_tiles}...")
+                    status_placeholder.text(f"Downloading tile {tile_count} of {total_tiles}...")
 
                     try:
                         tile_res = requests.get(tile_url, headers=SIMPLE_HEADERS)
                         tile_res.raise_for_status()
                         tile_data = Image.open(BytesIO(tile_res.content))
 
-                        status_msg.text(f"Stitching tile {tile_count} of {total_tiles}...")
+                        status_placeholder.text(f"Stitching tile {tile_count} of {total_tiles}...")
                         final_img.paste(tile_data, (x, y))
                     except Exception as e:
                         # Logic for tile error logging
@@ -157,7 +159,7 @@ if image_id:
                     progress_bar.progress(tile_count / total_tiles)
 
             # --- ADD FOOTER AND METADATA ---
-            status_msg.text("Finalizing image and metadata...")
+            status_placeholder.text("Finalizing image and metadata...")
             footer_height = 60
             final_with_footer = Image.new("RGB", (w, h + footer_height), (255, 255, 255))
             final_with_footer.paste(final_img, (0, 0))
@@ -186,7 +188,7 @@ if image_id:
             st.session_state.cached_id = image_id
             st.session_state.cached_ark_unit = ark_unit
 
-            status_msg.empty()
+            status_placeholder.empty()
             successMessage = f"✅ Ready! Need translation? Use the [Antenati Image AI Translator](https://antenati-image-translator.streamlit.app/)."
             st.success(successMessage)
             progress_bar.empty()

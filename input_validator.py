@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from api_helpers import track_ga_event, log_to_gsheets
 
-def validate_antenati_url(user_input, url_id, get_canvas_id_url, app_name, headers):
+def validate_antenati_url(user_input, url_id, get_canvas_id_url, app_name, headers, status_placeholder):
     image_id = ""
     ark_unit = ""
     original_input = user_input.strip()
@@ -14,7 +14,7 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url, app_name, heade
         # --- FAMILYSEARCH CHECK ---
         if "familysearch.org" in processing_url.lower():
             track_ga_event("familysearch_url_error", {"input_value": processing_url[:50]})
-            st.warning("""
+            status_placeholder.warning("""
             **FamilySearch URL detected.**
             
             This tool only works with links from the official [Antenati portal](https://antenati.cultura.gov.it/). 
@@ -24,32 +24,32 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url, app_name, heade
 
         # --- detail-nominative INTERCEPTOR (Must happen before stripping query parameters) ---
         if "detail-nominative" in processing_url:
-            with st.spinner("🔍 Person index detected (detail-nominative). Extracting record link from page..."):
-                try:
-                    response = requests.get(processing_url, headers=headers, timeout=10)
-                    if response.status_code == 200:
-                        soup = BeautifulSoup(response.text, 'html.parser')
-                        # Look for links containing the ARK prefix
-                        ark_link = soup.find('a', href=lambda x: x and '/ark:/12657/an_ud' in x)
-                        if ark_link:
-                            # Reconstruct full URL (Antenati links are often relative)
-                            found_name = ark_link.get_text(strip=True)
-                            found_path = ark_link['href']
-                            processing_url = f"https://antenati.cultura.gov.it{found_path}"
-                            st.info(f"""
-                            📍 **Record Found:** {found_name}  
-                            🔗 **Resolved to:** `{processing_url}`
-                            """)
+            status_placeholder.info("🔍 Person index detected (detail-nominative). Extracting record link from page...")
+            try:
+                response = requests.get(processing_url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    # Look for links containing the ARK prefix
+                    ark_link = soup.find('a', href=lambda x: x and '/ark:/12657/an_ud' in x)
+                    if ark_link:
+                        # Reconstruct full URL (Antenati links are often relative)
+                        found_name = ark_link.get_text(strip=True)
+                        found_path = ark_link['href']
+                        processing_url = f"https://antenati.cultura.gov.it{found_path}"
+                        status_placeholder.info(f"""
+                        📍 **Record Found:** {found_name}  
+                        🔗 **Resolved to:** `{processing_url}`
+                        """)
 
 
-                        else:
-                            st.warning("⚠️ Scraper reached the page but couldn't find the 'Atto di nascita' link.")
                     else:
-                        st.error(f"🚫 Antenati server returned an error: {response.status_code}")
+                        status_placeholder.warning("⚠️ Scraper reached the page but couldn't find the 'Atto di nascita' link.")
+                else:
+                    status_placeholder.error(f"🚫 Antenati server returned an error: {response.status_code}")
 
 
-                except Exception as e:
-                    st.error(f"Could not parse the nominative page: {e}")
+            except Exception as e:
+                status_placeholder.error(f"Could not parse the nominative page: {e}")
 
         # --- STRIP QUERY PARAMETERS (Repeated after transformations to keep inputs clean) ---
         if "?" in processing_url and "detail-nominative" not in processing_url:
@@ -57,10 +57,10 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url, app_name, heade
 
         # --- an_ud INTERCEPTOR ---
         if "/an_ud" in processing_url:
-            with st.spinner(f"🔍 Document unit detected ({processing_url}). Finding specific record link..."):
-                redirected = get_canvas_id_url(processing_url)
-                if redirected:
-                    processing_url = redirected
+            status_placeholder.info(f"🔍 Document unit detected ({processing_url}). Finding specific record link...")
+            redirected = get_canvas_id_url(processing_url)
+            if redirected:
+                processing_url = redirected
             
             # Re-strip in case the redirected URL contains new query parameters
             if "?" in processing_url:
@@ -68,7 +68,7 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url, app_name, heade
 
             # Notify user of URL switching
             if processing_url != original_input:
-                st.info(f"**Note:** Using link: `{processing_url}`. Links with an_ud or detail-nominative in them are not directly downloadable.")
+                status_placeholder.info(f"**Note:** Using link: `{processing_url}`. Links with an_ud or detail-nominative in them are not directly downloadable.")
 
         # Ensure URL has a scheme for parsing
         parse_url = processing_url
@@ -91,6 +91,19 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url, app_name, heade
                 ark_path = f"{ark_unit}/{image_id}"
                 track_ga_event("record_path_logged", {"ark_path": ark_path})
 
+            # --- BARE ARCHIVE UNIT CHECK ---
+            # If image_id is still just the unit (starts with an_ua), we can't process it.
+            if image_id.startswith("an_ua"):
+                status_placeholder.warning("""
+                ⚠️ **Incomplete URL.** The linked entered is to an entire archive book, not a specific page. 
+                
+                **To fix this:**
+                1. Click the **'Next Page'** button in the viewer.
+                2. Click the **'Previous Page'** button to return to your record.
+                3. Click the **'Copia link del bookmark'** icon (the chain link) and use that URL.
+                """)
+                return "", "", original_input, processing_url
+
         elif any(domain in processing_url for domain in ["beniculturali.it", "dam-antenati"]):
             # Handle IIIF and Manifest patterns
             path_parts = urlparse(parse_url).path.rstrip('/').split('/')
@@ -112,7 +125,7 @@ def validate_antenati_url(user_input, url_id, get_canvas_id_url, app_name, heade
             
             log_to_gsheets("error_logs", [app_name, "N/A", original_input, "User Input Error", "Invalid URL format"])
             
-            st.error(f"""
+            status_placeholder.error(f"""
             **Invalid URL format.** Please use a valid Antenati ARK URL.
 
             **Current processed URL:** `{processing_url}`
