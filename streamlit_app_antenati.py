@@ -9,22 +9,35 @@ import subprocess
 from datetime import datetime
 import uuid
 import traceback
-from urllib.parse import urlparse  # Added for robust URL parsing
 from git_utils import get_git_info
 from api_helpers import track_ga_event, log_to_gsheets
-from instructions import show_instructions
 from input_validator import validate_antenati_url
 from feedback import show_feedback_form
+from instructions import show_instructions
 
 # --- CONFIGURATION ---
 APP_NAME = "Antenati Image Downloader"
 APP_ICON = "🏛️"
 
-HEADERS = {
+SIMPLE_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Referer": "https://antenati.cultura.gov.it/"
 }
 
+FULL_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,it;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer": "https://antenati.cultura.gov.it/",
+    "DNT": "1",
+    "Connection": "keep-alive",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1"
+}
 # --- 1. PAGE LOAD TRACKING ---
 if "page_loaded" not in st.session_state:
     track_ga_event("page_load")
@@ -42,21 +55,7 @@ show_instructions()
 def get_canvas_id_url(url):
     """Parses the Antenati HTML to extract the hidden canvasId URL."""
     try:
-        HEADERS = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9,it;q=0.8",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Referer": "https://antenati.cultura.gov.it/",
-            "DNT": "1",
-            "Connection": "keep-alive",
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "same-origin",
-            "Sec-Fetch-User": "?1",
-            "Upgrade-Insecure-Requests": "1"
-        }
-        resp = requests.get(url, headers=HEADERS, timeout=5)
+        resp = requests.get(url, headers=FULL_HEADERS, timeout=5)
 
         if resp.status_code == 200:
             match = re.search(r"canvasId:\s*'([^']+)'", resp.text)
@@ -73,7 +72,7 @@ def get_canvas_id_url(url):
 user_input = st.text_input("Enter Antenati Image URL:", value=url_id)
 
 # --- URL VALIDATION LOGIC ---
-image_id, ark_unit, original_input, processing_url = validate_antenati_url(user_input, url_id, get_canvas_id_url, APP_NAME)
+image_id, ark_unit, original_input, processing_url = validate_antenati_url(user_input, url_id, get_canvas_id_url, APP_NAME, FULL_HEADERS)
 
 if image_id:
 
@@ -105,7 +104,7 @@ if image_id:
             status_msg = st.empty()
             status_msg.text("Getting the original information for the page...")
             try:
-                response = requests.get(f"{base_url}/info.json", headers=HEADERS)
+                response = requests.get(f"{base_url}/info.json", headers=SIMPLE_HEADERS)
                 response.raise_for_status() # Ensure we got a 200 OK
                 info = response.json()
             except Exception as e:
@@ -139,7 +138,7 @@ if image_id:
                     status_msg.text(f"Downloading tile {tile_count} of {total_tiles}...")
 
                     try:
-                        tile_res = requests.get(tile_url, headers=HEADERS)
+                        tile_res = requests.get(tile_url, headers=SIMPLE_HEADERS)
                         tile_res.raise_for_status()
                         tile_data = Image.open(BytesIO(tile_res.content))
 
@@ -215,4 +214,4 @@ if image_id:
     st.image(img_bytes, caption="Preview", use_container_width=True)
 
 # --- FINAL UI ELEMENTS ---
-show_feedback_form(APP_NAME, HEADERS)
+show_feedback_form(APP_NAME, SIMPLE_HEADERS)

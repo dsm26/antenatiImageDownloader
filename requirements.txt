@@ -1,2 +1,4 @@
-requests
+streamlit
 Pillow
+requests
+beautifulsoup4
