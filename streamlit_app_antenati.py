@@ -194,7 +194,17 @@ if image_id:
             progress_bar.empty()
 
         except Exception as e:
-            st.error(f"Could not retrieve image data. Please ensure the link is correct. (Technical Error: {e})")
+            st.error(f"""**Could not retrieve the image from the archive.**
+
+This is often a temporary issue with the Italian server.
+
+**Try these steps:**
+1. **Wait a moment and try again** (the server may be busy).
+2. **Refresh the page** (click the browser refresh button).
+3. **Check your link**—ensure you used the "Copia link del bookmark" button from the portal.
+
+**Technical Error:**
+{e}""")
             # don't log to gsheets here, logging happens earlier.
             st.stop()
 
